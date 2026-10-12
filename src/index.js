@@ -151,6 +151,7 @@ const noop = () => {};
  * @property {(boolean | number | string | { maxAge?: number, immutable?: boolean })=} cacheControl deprecated, use `cache.control`
  * @property {boolean=} cacheImmutable deprecated, use `cache.immutable`
  * @property {boolean=} forwardError forward error to next middleware
+ * @property {boolean=} resetCompilationOnChange cancel a stale compilation when a file changes while a build is in flight
  * @property {(boolean | HotOptions)=} hot enable hot module replacement
  */
 
@@ -597,6 +598,14 @@ function wdm(compiler, options = {}, isPlugin = false) {
   // module even when the legacy flat names were used.
   const normalizedOptions = normalizeOptions(options, logger);
 
+  // Opt-in stale-build cancellation (issue #369), default off. Without core
+  // support this only re-asserts the queued re-run and defers `invalidate`
+  // callbacks to the fresh build; with core support the re-assert becomes the
+  // cancel request.
+  const resetCompilationOnChange = Boolean(
+    normalizedOptions.resetCompilationOnChange,
+  );
+
   /**
    * @type {WithOptional<Context<RequestInternal, ResponseInternal>, "watching" | "outputFileSystem">}
    */
@@ -625,6 +634,42 @@ function wdm(compiler, options = {}, isPlugin = false) {
     // We are now in invalid state
     context.state = false;
     context.stats = undefined;
+  };
+  // Change-during-build trigger for `resetCompilationOnChange`. `watchRun`
+  // keeps the plain transition above: it fires at build start, so re-asserting
+  // there would flag a fresh build as stale and cause a spurious rebuild.
+  // `invalid` arriving while `state` is already false means an invalidation was
+  // requested mid-build (webpack pauses the file watcher while a build runs, so a
+  // disk change mid-build never reaches this hook until the build finishes —
+  // Phase 0 finding). The re-assert is a no-op on current webpack, where the
+  // flag is already set, and becomes the cancel request once core supports it.
+  // Deliberately not wired in plugin mode: the host owns watching there.
+  // The guard keeps the re-assert exactly-once: `watching.invalidate()` fires
+  // this hook again for the first invalidation of a cycle.
+  let notifyingInvalid = false;
+  /**
+   * @returns {void}
+   */
+  const onInvalid = () => {
+    const changeDuringBuild = !context.state;
+
+    invalid();
+
+    if (
+      resetCompilationOnChange &&
+      changeDuringBuild &&
+      !isPlugin &&
+      context.watching &&
+      !notifyingInvalid
+    ) {
+      notifyingInvalid = true;
+
+      try {
+        context.watching.invalidate();
+      } finally {
+        notifyingInvalid = false;
+      }
+    }
   };
   /**
    * @param {Stats | MultiStats} stats stats
@@ -660,7 +705,7 @@ function wdm(compiler, options = {}, isPlugin = false) {
   };
 
   compiler.hooks.watchRun.tap(PLUGIN_NAME, invalid);
-  compiler.hooks.invalid.tap(PLUGIN_NAME, invalid);
+  compiler.hooks.invalid.tap(PLUGIN_NAME, onInvalid);
   compiler.hooks.done.tap(PLUGIN_NAME, done);
 
   if (options.hot) {
@@ -872,6 +917,22 @@ function wdm(compiler, options = {}, isPlugin = false) {
       // No stats to hand over: unlike `close`, this callback takes the build
       // result, and no build ran.
       callback();
+      return;
+    }
+
+    // With `resetCompilationOnChange` the callback waits for the fresh build
+    // even when called while valid: invalidating first flips `state` to false
+    // (the `invalid` hook fires synchronously for the first invalidation of a
+    // cycle), so `ready` queues instead of answering with stale stats.
+    // Without the option the historical order — and its immediate stale answer
+    // when valid — is kept.
+    if (resetCompilationOnChange && filledContext.state) {
+      for (const target of invalidating) {
+        target.invalidate();
+      }
+
+      middleware.ready(filledContext, callback);
+
       return;
     }
 

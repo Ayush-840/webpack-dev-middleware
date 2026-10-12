@@ -281,6 +281,20 @@ exports[`validation should throw an error on the "publicPath" option with "false
     * options.publicPath should be an instance of function."
 `;
 
+exports[`validation should throw an error on the "resetCompilationOnChange" option with "0" value 1`] = `
+"Invalid options object. Dev Middleware has been initialized using an options object that does not match the API schema.
+ - options.resetCompilationOnChange should be a boolean.
+   -> Enable or disable cancelling a stale compilation when a file changes while a build is in flight.
+   -> Read more at https://github.com/webpack/webpack-dev-middleware#resetcompilationonchange"
+`;
+
+exports[`validation should throw an error on the "resetCompilationOnChange" option with "foo" value 1`] = `
+"Invalid options object. Dev Middleware has been initialized using an options object that does not match the API schema.
+ - options.resetCompilationOnChange should be a boolean.
+   -> Enable or disable cancelling a stale compilation when a file changes while a build is in flight.
+   -> Read more at https://github.com/webpack/webpack-dev-middleware#resetcompilationonchange"
+`;
+
 exports[`validation should throw an error on the "serverSideRender" option with "0" value 1`] = `
 "Invalid options object. Dev Middleware has been initialized using an options object that does not match the API schema.
  - options.serverSideRender should be a boolean.

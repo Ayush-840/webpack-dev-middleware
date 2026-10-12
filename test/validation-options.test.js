@@ -85,6 +85,10 @@ describe("validation", () => {
       success: [true, false],
       failure: ["foo", 0],
     },
+    resetCompilationOnChange: {
+      success: [true, false],
+      failure: ["foo", 0],
+    },
     hot: {
       success: [
         true,

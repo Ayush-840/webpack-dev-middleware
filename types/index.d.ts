@@ -399,6 +399,10 @@ type Options<
    */
   forwardError?: boolean | undefined;
   /**
+   * cancel a stale compilation when a file changes while a build is in flight
+   */
+  resetCompilationOnChange?: boolean | undefined;
+  /**
    * enable hot module replacement
    */
   hot?: (boolean | HotOptions) | undefined;

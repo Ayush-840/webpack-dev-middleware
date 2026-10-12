@@ -463,6 +463,11 @@
       "link": "https://github.com/webpack/webpack-dev-middleware#forwarderrors",
       "type": "boolean"
     },
+    "resetCompilationOnChange": {
+      "description": "Enable or disable cancelling a stale compilation when a file changes while a build is in flight.",
+      "link": "https://github.com/webpack/webpack-dev-middleware#resetcompilationonchange",
+      "type": "boolean"
+    },
     "hot": {
       "description": "Enable hot module replacement over a Server-Sent Events or WebSocket endpoint.",
       "link": "https://github.com/webpack/webpack-dev-middleware#hot",

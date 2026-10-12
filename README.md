@@ -62,21 +62,22 @@ See [below](#other-servers) for an example of use with fastify.
 
 ## Options
 
-|                      Name                       |           Type            |                    Default                    | Description                                                                                                          |
-| :---------------------------------------------: | :-----------------------: | :-------------------------------------------: | :------------------------------------------------------------------------------------------------------------------- |
-|            **[`methods`](#methods)**            |          `Array`          |              `[ 'GET', 'HEAD' ]`              | Allows to pass the list of HTTP request methods accepted by the middleware                                           |
-|            **[`headers`](#headers)**            | `Array\|Object\|Function` |                  `undefined`                  | Allows to pass custom HTTP headers on each request.                                                                  |
-|              **[`index`](#index)**              |     `boolean\|string`     |                 `index.html`                  | If `false` (but not `undefined`), the server will not respond to requests to the root URL.                           |
-|              **[`cache`](#cache)**              |         `Object`          |                  `undefined`                  | How responses are cached: `etag`, `lastModified`, `control`, `immutable`.                                            |
-|               **[`mime`](#mime)**               |         `Object`          |                  `undefined`                  | How a file's media type is decided: `types`, `default`.                                                              |
-|         **[`publicPath`](#publicpath)**         |         `string`          |                  `undefined`                  | The public path that the middleware is bound to.                                                                     |
-|              **[`stats`](#stats)**              | `boolean\|string\|Object` |        `stats` (from a configuration)         | Stats options object or preset name.                                                                                 |
-|   **[`serverSideRender`](#serversiderender)**   |         `boolean`         |                  `undefined`                  | Instructs the module to enable or disable the server-side rendering mode.                                            |
-|        **[`writeToDisk`](#writetodisk)**        |    `boolean\|Function`    |                    `false`                    | Instructs the module to write files to the configured location on disk as specified in your `webpack` configuration. |
-|   **[`outputFileSystem`](#outputfilesystem)**   |         `Object`          | [`memfs`](https://github.com/streamich/memfs) | Set the default file system which will be used by webpack as primary destination of generated files.                 |
-| **[`modifyResponseData`](#modifyresponsedata)** |        `Function`         |                  `undefined`                  | Allows to set up a callback to change the response data.                                                             |
-|                **[`hot`](#hot)**                |     `boolean\|Object`     |                    `false`                    | Enables a Server-Sent Events endpoint that drives the browser HMR client.                                            |
-|       **[`forwardError`](#forwarderror)**       |         `boolean`         |                    `false`                    | Enable or disable forwarding errors to the next middleware.                                                          |
+|                            Name                             |           Type            |                    Default                    | Description                                                                                                          |
+| :---------------------------------------------------------: | :-----------------------: | :-------------------------------------------: | :------------------------------------------------------------------------------------------------------------------- |
+|                  **[`methods`](#methods)**                  |          `Array`          |              `[ 'GET', 'HEAD' ]`              | Allows to pass the list of HTTP request methods accepted by the middleware                                           |
+|                  **[`headers`](#headers)**                  | `Array\|Object\|Function` |                  `undefined`                  | Allows to pass custom HTTP headers on each request.                                                                  |
+|                    **[`index`](#index)**                    |     `boolean\|string`     |                 `index.html`                  | If `false` (but not `undefined`), the server will not respond to requests to the root URL.                           |
+|                    **[`cache`](#cache)**                    |         `Object`          |                  `undefined`                  | How responses are cached: `etag`, `lastModified`, `control`, `immutable`.                                            |
+|                     **[`mime`](#mime)**                     |         `Object`          |                  `undefined`                  | How a file's media type is decided: `types`, `default`.                                                              |
+|               **[`publicPath`](#publicpath)**               |         `string`          |                  `undefined`                  | The public path that the middleware is bound to.                                                                     |
+|                    **[`stats`](#stats)**                    | `boolean\|string\|Object` |        `stats` (from a configuration)         | Stats options object or preset name.                                                                                 |
+|         **[`serverSideRender`](#serversiderender)**         |         `boolean`         |                  `undefined`                  | Instructs the module to enable or disable the server-side rendering mode.                                            |
+|              **[`writeToDisk`](#writetodisk)**              |    `boolean\|Function`    |                    `false`                    | Instructs the module to write files to the configured location on disk as specified in your `webpack` configuration. |
+|         **[`outputFileSystem`](#outputfilesystem)**         |         `Object`          | [`memfs`](https://github.com/streamich/memfs) | Set the default file system which will be used by webpack as primary destination of generated files.                 |
+|       **[`modifyResponseData`](#modifyresponsedata)**       |        `Function`         |                  `undefined`                  | Allows to set up a callback to change the response data.                                                             |
+|                      **[`hot`](#hot)**                      |     `boolean\|Object`     |                    `false`                    | Enables a Server-Sent Events endpoint that drives the browser HMR client.                                            |
+|             **[`forwardError`](#forwarderror)**             |         `boolean`         |                    `false`                    | Enable or disable forwarding errors to the next middleware.                                                          |
+| **[`resetCompilationOnChange`](#resetcompilationonchange)** |         `boolean`         |                    `false`                    | Cancel a stale compilation when a file changes while a build is in flight.                                           |
 
 The middleware accepts an `options` Object. The following is a property reference for the Object.
 
@@ -1648,6 +1649,23 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something broke!");
 });
 ```
+
+### `resetCompilationOnChange`
+
+Type: `boolean`
+Default: `false`
+
+When a file changes while webpack is compiling, the in-flight build is already stale, yet webpack finishes it and only then starts the next one ([issue #369](https://github.com/webpack/webpack-dev-middleware/issues/369)). When `true`, an invalidation requested while a build is in flight re-asserts the queued re-run, and callbacks passed to `instance.invalidate()` wait for the fresh build instead of answering immediately with stale stats.
+
+```js
+const instance = middleware(compiler, { resetCompilationOnChange: true });
+```
+
+Notes:
+
+- True cancellation of the in-flight build (aborting it at a safe checkpoint instead of letting it run to completion) needs support in webpack core and is not part of this option yet: without it, the stale build still runs to completion, but waiting requests and `invalidate` callbacks only ever see the restarted build's stats.
+- Disk changes detected by webpack's file watcher while a build runs are only reported after the build finishes (the watcher is paused mid-build), so this option cannot shorten those today; it covers explicit invalidations and callback ordering.
+- In plugin mode (used as a webpack plugin) the host owns watching, so the re-assert is a no-op there.
 
 ## Security
 
