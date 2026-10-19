@@ -58,7 +58,7 @@ app.use(
 app.listen(3000, () => console.log("Example app listening on port 3000!"));
 ```
 
-See [below](#other-servers) for an example of use with fastify.
+See [below](#fastify) for an example of use with fastify.
 
 ## Options
 
@@ -2130,7 +2130,7 @@ serve(app);
 
 Please take a moment to read our contributing guidelines if you haven't yet done so.
 
-[CONTRIBUTING](https://github.com/webpack/sass-loader?tab=contributing-ov-file#contributing)
+[CONTRIBUTING](./CONTRIBUTING.md)
 
 ## License
 
